@@ -4,38 +4,21 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    flake-lib = {
+      url = "github:jgus/flake-lib/v1";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-utils.follows = "flake-utils";
+    };
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
-    flake-utils.lib.eachDefaultSystem (system:
-      let
-        pin = import ./pin.nix;
-        inherit (pin) version hash;
-        pkgs = import nixpkgs { inherit system; };
-        bencoding = pkgs.python3Packages.buildPythonPackage {
-          pname = "bencoding";
-          inherit version;
-          pyproject = true;
-          src = pkgs.python3Packages.fetchPypi {
-            pname = "bencoding";
-            inherit version hash;
-          };
-          build-system = [ pkgs.python3Packages.setuptools ];
-          doCheck = false;
-        };
-        update-version = pkgs.writeShellApplication {
-          name = "update-version";
-          text = ''exec ${./update-version.sh} "$@"'';
-        };
-        update-branches = pkgs.writeShellApplication {
-          name = "update-branches";
-          text = ''exec ${./update-branches.sh} "$@"'';
-        };
-      in
-      {
-        packages = {
-          inherit bencoding update-version update-branches;
-          default = bencoding;
-        };
-      });
+  outputs = { self, nixpkgs, flake-utils, flake-lib }:
+    flake-lib.lib.mkLeafFlake {
+      inherit nixpkgs flake-utils;
+      source = { type = "pypi"; pname = "bencoding"; format = "sdist"; };
+      package = {
+        attr = "bencoding";
+        description = "bencoding: tiny Python bencode encoder/decoder used by Kapowarr.";
+      };
+      pin = import ./pin.nix;
+    };
 }
